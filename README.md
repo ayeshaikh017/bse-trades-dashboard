@@ -51,7 +51,14 @@ A full-stack dashboard that pulls thousands of trade records from a BSE Exchange
 
 <!-- Paste your demo video link/embed below -->
 
-**Demo Video:** `PASTE YOUR VIDEO LINK HERE`
+**Demo Video:** 
+
+
+https://github.com/user-attachments/assets/7d45b7a8-9c3d-4f1e-aed4-a851fcdcdd38
+
+
+
+
 
 **The walkthrough covers:**
 
