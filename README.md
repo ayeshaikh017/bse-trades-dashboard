@@ -80,9 +80,9 @@ https://github.com/user-attachments/assets/7d45b7a8-9c3d-4f1e-aed4-a851fcdcdd38
 | ⚙️ **Backend** (API) | https://bse-trades-dashboard-818z.onrender.com |
 | ❤️ **Health Check** | https://bse-trades-dashboard-818z.onrender.com/ |
 
-> 💡 Hosted on Render's free tier, so the first request may take a few seconds while the service wakes up.
+>💡 Hosted on Render's free tier, so the first request may take a few seconds while the service wakes up.
 
----
+⏱️ Note on the demo delay: The deployed demo and the video use BSE_DELAY_MS=3000 (3 seconds) so the full flow can be seen quickly. The delay is configurable. Set BSE_DELAY_MS=900000 to simulate the real 15-minute BSE pull. The architecture is the same either way, because the browser only waits for the instant 202 Accepted response.
 
 ## 📌 Project Overview
 
