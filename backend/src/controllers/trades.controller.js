@@ -3,8 +3,7 @@ const Trade = require("../models/Trade");
 const getTrades = async (req, res) => {
   try {
     const trades = await Trade.find()
-      .sort({ timestamp: -1 })
-      .limit(5000);
+      .sort({ timestamp: -1 });
 
     return res.status(200).json({
       success: true,
