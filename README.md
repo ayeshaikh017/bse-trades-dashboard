@@ -1,29 +1,41 @@
 # BSE Trades Dashboard
 
-A full-stack technical assessment project that simulates pulling trade data from the BSE Exchange API where a complete pull can take up to 15 minutes while network connections are limited to 30 seconds.
+A real-time trade monitoring dashboard that simulates pulling trade data from the BSE Exchange API, even when the external API can take up to 15 minutes while the network allows HTTP connections for only 30 seconds.
 
-The application solves this by running the long-running pull asynchronously in the backend and notifying the dashboard through Socket.IO when new trades are available.
+## Live Demo
 
----
+**Frontend:**  
+https://bse-trades-dashboard-1-wwdc.onrender.com/
+
+**Backend:**  
+https://bse-trades-dashboard-818z.onrender.com/
 
 ## Features
 
-- Mock BSE API
-- Configurable BSE response delay
-- 3,000 seeded trade records
-- MongoDB persistence
-- Existing trades displayed immediately
-- Background trade pull
-- Pull status tracking
-- Real-time updates using Socket.IO
+- Mock BSE API with configurable response delay
+- Generates 3000 trade records per pull
+- Background trade processing
+- MongoDB persistence using Mongoose
+- Dashboard displays previously stored trades immediately
+- Real-time dashboard updates using Socket.IO
 - No page refresh required
 - No polling loop
-- No cronjob or scheduler
-- Responsive dashboard
-
----
+- No cron/scheduler
+- Handles long-running BSE pulls without keeping the browser HTTP request open
+- Responsive React dashboard
 
 ## Tech Stack
+
+### Backend
+
+- Node.js
+- Express.js
+- MongoDB Atlas
+- Mongoose
+- Socket.IO
+- Axios
+- dotenv
+- CORS
 
 ### Frontend
 
@@ -31,20 +43,92 @@ The application solves this by running the long-running pull asynchronously in t
 - Vite
 - Axios
 - Socket.IO Client
+- CSS
 
-### Backend
+## Architecture
 
-- Node.js
-- Express.js
-- Socket.IO
-- Axios
-- Mongoose
+```text
+                    ┌──────────────────────────┐
+                    │     React Dashboard      │
+                    │                          │
+                    │  Existing Trades        │
+                    │  Pull Status             │
+                    └────────────┬─────────────┘
+                                 │
+                       POST /api/pull/start
+                                 │
+                                 ▼
+                    ┌──────────────────────────┐
+                    │      Express API         │
+                    │                          │
+                    │  Returns 202 Accepted    │
+                    │  immediately             │
+                    └────────────┬─────────────┘
+                                 │
+                         Background Job
+                                 │
+                                 ▼
+                    ┌──────────────────────────┐
+                    │     Mock BSE Service     │
+                    │                          │
+                    │  Configurable delay      │
+                    │  3000 trade records      │
+                    └────────────┬─────────────┘
+                                 │
+                                 ▼
+                    ┌──────────────────────────┐
+                    │       MongoDB Atlas      │
+                    │                          │
+                    │         trades           │
+                    └────────────┬─────────────┘
+                                 │
+                                 │
+                    ┌────────────▼─────────────┐
+                    │        Socket.IO         │
+                    │                          │
+                    │     pullCompleted        │
+                    └────────────┬─────────────┘
+                                 │
+                                 ▼
+                    ┌──────────────────────────┐
+                    │     React Dashboard      │
+                    │                          │
+                    │ Fetches latest trades    │
+                    │ automatically            │
+                    └──────────────────────────┘
+```
 
-### Database
+## Why This Architecture?
 
-- MongoDB Atlas
+The BSE API may take up to 15 minutes to return data, while the network terminates HTTP connections after 30 seconds.
 
----
+Keeping the browser HTTP request open for the entire BSE operation would therefore be unreliable.
+
+Instead, the application separates the request that starts the pull from the long-running operation.
+
+The client sends:
+
+```text
+POST /api/pull/start
+```
+
+The backend immediately returns:
+
+```text
+202 Accepted
+```
+
+The actual BSE pull then continues in the background.
+
+When the pull finishes:
+
+1. Trades are stored in MongoDB.
+2. The backend emits a `pullCompleted` Socket.IO event.
+3. The React dashboard receives the event.
+4. React fetches the latest trades.
+5. The dashboard updates without a page refresh.
+
+This avoids both long-lived browser HTTP connections and polling.
 
 ## Project Structure
 
@@ -54,21 +138,30 @@ bse-trades-dashboard/
 ├── backend/
 │   ├── src/
 │   │   ├── config/
+│   │   │   └── db.js
 │   │   ├── controllers/
+│   │   │   ├── pull.controller.js
+│   │   │   └── trades.controller.js
 │   │   ├── models/
-│   │   ├── mock-bse/
+│   │   │   └── Trade.js
 │   │   ├── routes/
+│   │   │   ├── pull.routes.js
+│   │   │   └── trades.routes.js
 │   │   ├── services/
+│   │   │   └── pull.service.js
+│   │   ├── mock-bse/
+│   │   │   └── bse.routes.js
 │   │   └── server.js
-│   │
 │   ├── .env.example
 │   └── package.json
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
+│   │   │   └── TradeTable.jsx
 │   │   ├── api.js
 │   │   ├── App.jsx
+│   │   ├── index.css
 │   │   └── main.jsx
 │   └── package.json
 │
@@ -79,105 +172,135 @@ bse-trades-dashboard/
 └── .gitignore
 ```
 
----
+## Local Setup
 
-## Prerequisites
+### 1. Clone the repository
 
-Install:
+```bash
+git clone <YOUR_GITHUB_REPOSITORY_URL>
+cd bse-trades-dashboard
+```
 
-- Node.js 18+
-- npm
-- MongoDB Atlas account
-
----
-
-## Backend Setup
+### 2. Backend setup
 
 ```bash
 cd backend
 npm install
 ```
 
-Create a `.env` file:
+Create `.env`:
 
 ```env
 PORT=5000
-MONGO_URI=your_mongodb_connection_string
+MONGO_URI=YOUR_MONGODB_CONNECTION_STRING
 CLIENT_URL=http://localhost:5173
 BSE_DELAY_MS=10000
 ```
 
-For the full 15-minute simulation:
-
-```env
-BSE_DELAY_MS=900000
-```
-
-Start the backend:
+Start backend:
 
 ```bash
 npm run dev
 ```
 
-Backend:
+Backend runs on:
 
 ```text
 http://localhost:5000
 ```
 
----
-
-## Frontend Setup
+### 3. Frontend setup
 
 Open another terminal:
 
 ```bash
 cd frontend
 npm install
+```
+
+Create `.env`:
+
+```env
+VITE_API_URL=http://localhost:5000/api
+VITE_SOCKET_URL=http://localhost:5000
+```
+
+Start frontend:
+
+```bash
 npm run dev
 ```
 
-Frontend:
+Frontend runs on:
 
 ```text
 http://localhost:5173
 ```
 
----
+## Environment Variables
+
+### Backend
+
+| Variable | Description |
+|---|---|
+| `PORT` | Backend server port |
+| `MONGO_URI` | MongoDB Atlas connection string |
+| `CLIENT_URL` | Frontend URL used for CORS and Socket.IO |
+| `BSE_DELAY_MS` | Mock BSE response delay in milliseconds |
+
+### Frontend
+
+| Variable | Description |
+|---|---|
+| `VITE_API_URL` | Backend API base URL |
+| `VITE_SOCKET_URL` | Backend Socket.IO URL |
+
+The mock delay is configurable.
+
+For demonstration:
+
+```env
+BSE_DELAY_MS=3000
+```
+
+For simulating the full 15-minute BSE pull:
+
+```env
+BSE_DELAY_MS=900000
+```
+
+`900000 ms = 15 minutes`.
 
 ## API Endpoints
 
-### Mock BSE API
+### Health
 
 ```http
-GET /getTrades
+GET /
 ```
 
-Returns approximately 3,000 generated trade records after the configured delay.
-
----
-
-### Get Stored Trades
+### Get Trades
 
 ```http
 GET /api/trades
 ```
 
-Returns trades already stored in MongoDB.
+Returns currently stored trades.
 
----
-
-### Start Trade Pull
+### Start Pull
 
 ```http
 POST /api/pull/start
 ```
 
-Starts the trade pull asynchronously.
+Starts the background trade pull and immediately returns:
 
-The endpoint immediately returns a `202 Accepted` response rather than keeping the HTTP connection open.
-
----
+```json
+{
+  "success": true,
+  "message": "Trade pull started in background"
+}
+```
 
 ### Pull Status
 
@@ -187,7 +310,7 @@ GET /api/pull/status
 
 Returns the current pull status.
 
-Possible states include:
+Possible statuses:
 
 ```text
 idle
@@ -196,158 +319,104 @@ completed
 failed
 ```
 
----
+### Mock BSE API
+
+```http
+GET /getTrades
+```
+
+Simulates the BSE Exchange API and returns generated trade data after the configured delay.
 
 ## Real-Time Events
 
-The backend uses Socket.IO.
+The backend uses Socket.IO to notify connected dashboards.
 
 ### Pull Completed
+
+Event:
 
 ```text
 pullCompleted
 ```
 
-Sent after new trades have been successfully stored in MongoDB.
+Payload:
 
-The React dashboard receives the event and loads the latest trade data without requiring a page refresh.
+```json
+{
+  "success": true,
+  "message": "New trades have been pulled successfully",
+  "tradeCount": 3000
+}
+```
 
 ### Pull Failed
+
+Event:
 
 ```text
 pullFailed
 ```
 
-Sent if the background pull fails.
+## Testing the Complete Flow
 
----
+1. Open the dashboard.
+2. Previously stored trades are loaded immediately.
+3. Click **Start New Pull**.
+4. The backend responds immediately.
+5. The pull runs in the background.
+6. The mock BSE API waits for the configured delay.
+7. 3000 trades are generated.
+8. Trades are stored in MongoDB.
+9. Socket.IO emits `pullCompleted`.
+10. React automatically fetches the latest trades.
+11. The dashboard updates without refreshing the page.
 
-## How the System Solves the 30-Second Timeout
+## Handling the 30-Second Network Timeout
 
-A traditional implementation could keep the browser's HTTP connection open while waiting for the BSE API:
+The application does not keep the browser's HTTP request open while waiting for the BSE operation.
+
+Instead:
 
 ```text
-Browser
-   │
-   └──────────── 15 minute HTTP request ────────────┐
-                                                     │
-                                                Network timeout
-                                                     │
-                                                     ▼
-                                                   FAIL
-```
-
-This project instead uses:
-
-```text
-Browser
-   │
-   ├── POST /api/pull/start
-   │
-   └── receives 202 immediately
-
+Client
+  │
+  │ POST /api/pull/start
+  ▼
+Backend
+  │
+  │ 202 Accepted
+  ▼
+Client continues normally
 
 Backend
-   │
-   └── background pull
-          │
-          ▼
-      Mock BSE API
-          │
-          ▼
-       MongoDB
-          │
-          ▼
-      Socket.IO
-          │
-          ▼
-      Dashboard
+  │
+  │ Background pull
+  ▼
+Mock BSE
+  │
+  │ Up to 15 minutes
+  ▼
+MongoDB
+  │
+  ▼
+Socket.IO
+  │
+  ▼
+Client updates automatically
 ```
 
-Therefore the browser does not maintain a long-running HTTP connection.
+Therefore, the long-running operation does not depend on a 15-minute browser HTTP connection.
 
----
+## Production Consideration
 
-## Testing the Workflow
+For the scope of this assessment, the background pull is handled inside the Node.js application process.
 
-1. Start MongoDB Atlas.
-2. Start the backend.
-3. Start the frontend.
-4. Open the dashboard.
-5. Existing trades should be displayed.
-6. Click **Start New Pull**.
-7. The pull status changes to `running`.
-8. Existing trades remain visible.
-9. Wait for the configured delay.
-10. The backend stores the new trades.
-11. Socket.IO emits `pullCompleted`.
-12. The dashboard automatically displays the latest trades.
-
-No page refresh is required.
-
----
-
-## Development vs Assessment Delay
-
-For development and demonstration:
-
-```env
-BSE_DELAY_MS=10000
-```
-
-This simulates a 10-second BSE response.
-
-To simulate the assignment's maximum delay:
-
-```env
-BSE_DELAY_MS=900000
-```
-
-which represents 15 minutes.
-
----
-
-## Architecture
-
-Detailed architecture information is available in:
-
-```text
-docs/ARCHITECTURE.md
-```
-
----
+For a production-scale system, a durable job queue such as Redis/BullMQ or a dedicated worker service could be introduced so that long-running jobs survive application restarts and can be retried independently.
 
 ## Security
 
-Environment variables containing credentials are not committed to GitHub.
-
-The `.env` file is included in `.gitignore`.
-
-A `.env.example` file is provided with placeholder values.
-
----
-
-## Assessment Requirements Covered
-
-| Requirement | Implementation |
-|---|---|
-| Mock BSE API | `GET /getTrades` |
-| Thousands of trades | 3,000 generated records |
-| Configurable delay | `BSE_DELAY_MS` |
-| Up to 15-minute pull | `900000 ms` |
-| Dashboard opens immediately | Existing MongoDB data loaded on startup |
-| Pull continues in background | Backend pull service |
-| No long browser connection | `202 Accepted` |
-| Automatic updates | Socket.IO |
-| No page refresh | React state update |
-| No polling | Socket.IO event |
-| No cronjob | Event-driven architecture |
-| Persistent data | MongoDB Atlas |
-
----
-
-## Author
-
-B.E. Information Technology
-
-Technical Assessment Project — BSE Trades Dashboard
+- MongoDB credentials are stored in environment variables.
+- `.env` files are excluded from Git.
+- Frontend does not connect directly to MongoDB.
+- Backend controls database access.
+- CORS restricts frontend access to the configured client URL.
